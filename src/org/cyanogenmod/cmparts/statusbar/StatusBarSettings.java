@@ -16,13 +16,21 @@
  */
 package org.cyanogenmod.cmparts.statusbar;
 
+import android.app.AlertDialog;
+import android.app.Dialog;
+import android.content.ContentResolver;
+import android.content.DialogInterface;
 import android.os.Bundle;
+import android.provider.Settings;
 import android.support.v7.preference.Preference;
 import android.support.v7.preference.Preference.OnPreferenceChangeListener;
 import android.text.format.DateFormat;
 import android.view.View;
+import android.widget.EditText;
 
 import cyanogenmod.preference.CMSystemSettingListPreference;
+
+import java.util.Date;
 
 import org.cyanogenmod.cmparts.R;
 import org.cyanogenmod.cmparts.SettingsPreferenceFragment;
@@ -32,10 +40,17 @@ public class StatusBarSettings extends SettingsPreferenceFragment
 
     private static final String STATUS_BAR_CLOCK_STYLE = "status_bar_clock";
     private static final String STATUS_BAR_AM_PM = "status_bar_am_pm";
+    private static final String STATUS_BAR_DATE = "status_bar_date";
+    private static final String STATUS_BAR_DATE_STYLE = "status_bar_date_style";
+    private static final String STATUS_BAR_DATE_FORMAT = "status_bar_date_format";
+    private static final String STATUS_BAR_DATE_POSITION = "status_bar_date_position";
     private static final String STATUS_BAR_BATTERY_STYLE = "status_bar_battery_style";
     private static final String STATUS_BAR_SHOW_BATTERY_PERCENT = "status_bar_show_battery_percent";
     private static final String STATUS_BAR_QUICK_QS_PULLDOWN = "qs_quick_pulldown";
 
+    private static final int CLOCK_DATE_STYLE_LOWERCASE = 1;
+    private static final int CLOCK_DATE_STYLE_UPPERCASE = 2;
+    private static final int CUSTOM_CLOCK_DATE_FORMAT_INDEX = 18;
     private static final int STATUS_BAR_BATTERY_STYLE_HIDDEN = 4;
     private static final int STATUS_BAR_BATTERY_STYLE_TEXT = 6;
     private static final int PULLDOWN_DIR_NONE = 0;
@@ -45,6 +60,10 @@ public class StatusBarSettings extends SettingsPreferenceFragment
     private CMSystemSettingListPreference mQuickPulldown;
     private CMSystemSettingListPreference mStatusBarClock;
     private CMSystemSettingListPreference mStatusBarAmPm;
+    private CMSystemSettingListPreference mStatusBarDate;
+    private CMSystemSettingListPreference mStatusBarDateStyle;
+    private CMSystemSettingListPreference mStatusBarDateFormat;
+    private CMSystemSettingListPreference mStatusBarDatePosition;
     private CMSystemSettingListPreference mStatusBarBattery;
     private CMSystemSettingListPreference mStatusBarBatteryShowPercent;
 
@@ -52,6 +71,8 @@ public class StatusBarSettings extends SettingsPreferenceFragment
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         addPreferencesFromResource(R.xml.status_bar_settings);
+
+        ContentResolver resolver = getActivity().getContentResolver();
 
         mStatusBarClock = (CMSystemSettingListPreference) findPreference(STATUS_BAR_CLOCK_STYLE);
         mStatusBarBatteryShowPercent =
@@ -62,6 +83,44 @@ public class StatusBarSettings extends SettingsPreferenceFragment
             mStatusBarAmPm.setEnabled(false);
             mStatusBarAmPm.setSummary(R.string.status_bar_am_pm_info);
         }
+
+        mStatusBarDate = (CMSystemSettingListPreference) findPreference(STATUS_BAR_DATE);
+        int showDate = Settings.System.getInt(resolver,
+                Settings.System.STATUS_BAR_DATE, 0);
+        mStatusBarDate.setValue(String.valueOf(showDate));
+        mStatusBarDate.setSummary(mStatusBarDate.getEntry());
+        mStatusBarDate.setOnPreferenceChangeListener(this);
+
+        mStatusBarDateStyle =
+                (CMSystemSettingListPreference) findPreference(STATUS_BAR_DATE_STYLE);
+        int dateStyle = Settings.System.getInt(resolver,
+                Settings.System.STATUS_BAR_DATE_STYLE, 0);
+        mStatusBarDateStyle.setValue(String.valueOf(dateStyle));
+        mStatusBarDateStyle.setSummary(mStatusBarDateStyle.getEntry());
+        mStatusBarDateStyle.setOnPreferenceChangeListener(this);
+
+        mStatusBarDateFormat =
+                (CMSystemSettingListPreference) findPreference(STATUS_BAR_DATE_FORMAT);
+        String dateFormat = Settings.System.getString(resolver,
+                Settings.System.STATUS_BAR_DATE_FORMAT);
+        if (dateFormat == null) {
+            dateFormat = "EEE";
+        }
+        mStatusBarDateFormat.setValue(dateFormat);
+        mStatusBarDateFormat.setOnPreferenceChangeListener(this);
+        mStatusBarDateFormat.setSummary(DateFormat.format(dateFormat, new Date()));
+
+        parseClockDateFormats();
+
+        mStatusBarDatePosition =
+                (CMSystemSettingListPreference) findPreference(STATUS_BAR_DATE_POSITION);
+        int statusBarDatePosition = Settings.System.getInt(resolver,
+                Settings.System.STATUS_BAR_DATE_POSITION, 0);
+        mStatusBarDatePosition.setValue(String.valueOf(statusBarDatePosition));
+        mStatusBarDatePosition.setSummary(mStatusBarDatePosition.getEntry());
+        mStatusBarDatePosition.setOnPreferenceChangeListener(this);
+
+        setStatusBarDateDependencies();
 
         mStatusBarBattery =
                 (CMSystemSettingListPreference) findPreference(STATUS_BAR_BATTERY_STYLE);
@@ -87,19 +146,129 @@ public class StatusBarSettings extends SettingsPreferenceFragment
 
     @Override
     public boolean onPreferenceChange(Preference preference, Object newValue) {
-        int value = Integer.parseInt((String) newValue);
-        if (preference == mQuickPulldown) {
-            updateQuickPulldownSummary(value);
-        } else if (preference == mStatusBarBattery) {
-            enableStatusBarBatteryDependents(value);
+        ContentResolver resolver = getActivity().getContentResolver();
+        if (preference == mStatusBarDate) {
+            int statusBarDate = Integer.parseInt((String) newValue);
+            int index = mStatusBarDate.findIndexOfValue((String) newValue);
+            Settings.System.putInt(resolver,
+                    Settings.System.STATUS_BAR_DATE, statusBarDate);
+            mStatusBarDate.setSummary(mStatusBarDate.getEntries()[index]);
+            setStatusBarDateDependencies();
+            return true;
+        } else if (preference == mStatusBarDateStyle) {
+            int statusBarDateStyle = Integer.parseInt((String) newValue);
+            int index = mStatusBarDateStyle.findIndexOfValue((String) newValue);
+            Settings.System.putInt(resolver,
+                    Settings.System.STATUS_BAR_DATE_STYLE, statusBarDateStyle);
+            mStatusBarDateStyle.setSummary(mStatusBarDateStyle.getEntries()[index]);
+            return true;
+        } else if (preference ==  mStatusBarDateFormat) {
+            int index = mStatusBarDateFormat.findIndexOfValue((String) newValue);
+            if (index == CUSTOM_CLOCK_DATE_FORMAT_INDEX) {
+                AlertDialog.Builder alert = new AlertDialog.Builder(getActivity());
+                alert.setTitle(R.string.status_bar_date_string_edittext_title);
+                alert.setMessage(R.string.status_bar_date_string_edittext_summary);
+
+                final EditText input = new EditText(getActivity());
+                String oldText = Settings.System.getString(resolver,
+                        Settings.System.STATUS_BAR_DATE_FORMAT);
+                if (oldText != null) {
+                    input.setText(oldText);
+                }
+                alert.setView(input);
+
+                alert.setPositiveButton(R.string.menu_save, new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialogInterface, int whichButton) {
+                        String value = input.getText().toString();
+                        if (value.equals("")) {
+                            return;
+                        }
+                        Settings.System.putString(resolver,
+                                Settings.System.STATUS_BAR_DATE_FORMAT, value);
+                        mStatusBarDateFormat.setSummary(DateFormat.format(value, new Date()));
+
+                        return;
+                    }
+                });
+
+                alert.setNegativeButton(R.string.menu_cancel,
+                    new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialogInterface, int which) {
+                        return;
+                    }
+                });
+                AlertDialog dialog = alert.create();
+                dialog.show();
+            } else {
+                if ((String) newValue != null) {
+                    Settings.System.putString(resolver,
+                            Settings.System.STATUS_BAR_DATE_FORMAT, (String) newValue);
+                    mStatusBarDateFormat.setSummary(
+                            DateFormat.format((String) newValue, new Date()));
+                }
+            }
+            return true;
+        } else if (preference == mStatusBarDatePosition) {
+            int statusBarDatePosition = Integer.parseInt((String) newValue);
+            int index = mStatusBarDatePosition.findIndexOfValue((String) newValue);
+            Settings.System.putInt(resolver,
+                    Settings.System.STATUS_BAR_DATE_POSITION, statusBarDatePosition);
+            mStatusBarDatePosition.setSummary(mStatusBarDatePosition.getEntries()[index]);
+            return true;
+        } else {
+            int value = Integer.parseInt((String) newValue);
+            if (preference == mQuickPulldown) {
+                updateQuickPulldownSummary(value);
+            } else if (preference == mStatusBarBattery) {
+                enableStatusBarBatteryDependents(value);
+            }
+            return true;
         }
-        return true;
     }
 
     private void enableStatusBarBatteryDependents(int batteryIconStyle) {
         mStatusBarBatteryShowPercent.setEnabled(
                 batteryIconStyle != STATUS_BAR_BATTERY_STYLE_HIDDEN
                 && batteryIconStyle != STATUS_BAR_BATTERY_STYLE_TEXT);
+    }
+
+    private void setStatusBarDateDependencies() {
+        int showDate = Settings.System.getInt(getActivity().getContentResolver(),
+                Settings.System.STATUS_BAR_DATE, 0);
+        mStatusBarDate.setEnabled(true);
+        mStatusBarDateStyle.setEnabled(showDate != 0);
+        mStatusBarDatePosition.setEnabled(showDate != 0);
+        mStatusBarDateFormat.setEnabled(showDate != 0);
+    }
+
+    private void parseClockDateFormats() {
+        // Parse and repopulate mClockDateFormats's entries based on current date.
+        String[] dateEntries = getResources().getStringArray(R.array.status_bar_date_format_entries_values);
+        CharSequence parsedDateEntries[];
+        parsedDateEntries = new String[dateEntries.length];
+        Date now = new Date();
+
+        int lastEntry = dateEntries.length - 1;
+        int dateFormat = Settings.System.getInt(getActivity()
+                .getContentResolver(), Settings.System.STATUS_BAR_DATE_STYLE, 0);
+        for (int i = 0; i < dateEntries.length; i++) {
+            if (i == lastEntry) {
+                parsedDateEntries[i] = dateEntries[i];
+            } else {
+                String newDate;
+                CharSequence dateString = DateFormat.format(dateEntries[i], now);
+                if (dateFormat == CLOCK_DATE_STYLE_LOWERCASE) {
+                    newDate = dateString.toString().toLowerCase();
+                } else if (dateFormat == CLOCK_DATE_STYLE_UPPERCASE) {
+                    newDate = dateString.toString().toUpperCase();
+                } else {
+                    newDate = dateString.toString();
+                }
+
+                parsedDateEntries[i] = newDate;
+            }
+        }
+        mStatusBarDateFormat.setEntries(parsedDateEntries);
     }
 
     private void updateQuickPulldownSummary(int value) {
