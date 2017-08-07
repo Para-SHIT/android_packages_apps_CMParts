@@ -40,4 +40,13 @@
     <string name="status_bar_date_left">Left of time</string>
     <string name="menu_save">Save</string>
     <string name="menu_cancel">Discard</string>
+
+    <!-- ANBI -->
+    <string name="buttons_misc_cat">Misc</string>
+    <string name="anbi_title">Accidental touch</string>
+    <string name="anbi_summary">Prevent interaction with navigation buttons while the screen is being touched</string>
+
+    <!-- Pocket judge -->
+    <string name="pocket_judge_title">Pocket detection</string>
+    <string name="pocket_judge_summary">Block screen and button inputs when device is in pocket</string>
 </resources>
