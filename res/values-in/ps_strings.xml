@@ -38,4 +38,11 @@
   <string name="status_bar_date_left">Kiri jam</string>
   <string name="menu_save">Simpan</string>
   <string name="menu_cancel">Buang</string>
+  <!-- ANBI -->
+  <string name="buttons_misc_cat">Lain-lain</string>
+  <string name="anbi_title">Sentuhan tidak disengaja</string>
+  <string name="anbi_summary">Cegah interaksi dengan tombol navigasi saat layar sedang disentuh</string>
+  <!-- Pocket judge -->
+  <string name="pocket_judge_title">Deteksi saku</string>
+  <string name="pocket_judge_summary">Blokir masukan tombol dan layar saat perangkat berada dalam saku</string>
 </resources>
