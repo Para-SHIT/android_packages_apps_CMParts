@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 The LineageOS Project
+ * Copyright (C) 2017-2018 The LineageOS Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,7 +34,8 @@ public class NetworkTrafficSettings extends SettingsPreferenceFragment
 
     private DropDownPreference mNetTrafficMode;
     private CMSecureSettingSwitchPreference mNetTrafficAutohide;
-    private NetworkTrafficThresholdSeekBarPreference mNetTrafficAutohideThreshold;
+    private DropDownPreference mNetTrafficUnits;
+    private CMSecureSettingSwitchPreference mNetTrafficShowUnits;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -53,41 +54,39 @@ public class NetworkTrafficSettings extends SettingsPreferenceFragment
                 findPreference(CMSettings.Secure.NETWORK_TRAFFIC_AUTOHIDE);
         mNetTrafficAutohide.setOnPreferenceChangeListener(this);
 
-        mNetTrafficAutohideThreshold = (NetworkTrafficThresholdSeekBarPreference)
-                findPreference(CMSettings.Secure.NETWORK_TRAFFIC_AUTOHIDE_THRESHOLD);
-        int netTrafficAutohideThreshold = CMSettings.Secure.getInt(resolver,
-                CMSettings.Secure.NETWORK_TRAFFIC_AUTOHIDE_THRESHOLD, 10);
-        mNetTrafficAutohideThreshold.setThreshold(netTrafficAutohideThreshold);
-        mNetTrafficAutohideThreshold.setOnPreferenceChangeListener(this);
+        mNetTrafficUnits = (DropDownPreference)
+                findPreference(CMSettings.Secure.NETWORK_TRAFFIC_UNITS);
+        mNetTrafficUnits.setOnPreferenceChangeListener(this);
+        int units = CMSettings.Secure.getInt(resolver,
+                CMSettings.Secure.NETWORK_TRAFFIC_UNITS, /* Mbps */ 1);
+        mNetTrafficUnits.setValue(String.valueOf(units));
 
-        updateEnabledStates(null, null);
+        mNetTrafficShowUnits = (CMSecureSettingSwitchPreference)
+                findPreference(CMSettings.Secure.NETWORK_TRAFFIC_SHOW_UNITS);
+        mNetTrafficShowUnits.setOnPreferenceChangeListener(this);
+
+        updateEnabledStates(mode);
     }
 
     @Override
     public boolean onPreferenceChange(Preference preference, Object newValue) {
         if (preference == mNetTrafficMode) {
-            int intState = Integer.valueOf((String) newValue);
+            int mode = Integer.valueOf((String) newValue);
             CMSettings.Secure.putInt(getActivity().getContentResolver(),
-                    CMSettings.Secure.NETWORK_TRAFFIC_MODE, intState);
-            updateEnabledStates(intState, null);
-            return true;
-        } else if (preference == mNetTrafficAutohide) {
-            updateEnabledStates(null, (Boolean) newValue);
-            return true;
-        } else if (preference == mNetTrafficAutohideThreshold) {
-            int threshold = (Integer) newValue;
+                    CMSettings.Secure.NETWORK_TRAFFIC_MODE, mode);
+            updateEnabledStates(mode);
+        } else if (preference == mNetTrafficUnits) {
+            int units = Integer.valueOf((String) newValue);
             CMSettings.Secure.putInt(getActivity().getContentResolver(),
-                    CMSettings.Secure.NETWORK_TRAFFIC_AUTOHIDE_THRESHOLD, threshold);
-            return true;
+                    CMSettings.Secure.NETWORK_TRAFFIC_UNITS, units);
         }
-        return false;
+        return true;
     }
 
-    private void updateEnabledStates(Integer mode, Boolean autoHide) {
-        boolean disabled = mode == null ? "0".equals(mNetTrafficMode.getValue()) : mode == 0;
-        boolean autoHideEnabled = autoHide == null ? mNetTrafficAutohide.isChecked() : autoHide;
-
-        mNetTrafficAutohide.setEnabled(!disabled);
-        mNetTrafficAutohideThreshold.setEnabled(!disabled && autoHideEnabled);
+    private void updateEnabledStates(int mode) {
+        final boolean enabled = mode != 0;
+        mNetTrafficAutohide.setEnabled(enabled);
+        mNetTrafficUnits.setEnabled(enabled);
+        mNetTrafficShowUnits.setEnabled(enabled);
     }
 }

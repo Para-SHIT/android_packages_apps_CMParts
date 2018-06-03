@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-     Copyright (C) 2017 The LineageOS Project
+     Copyright (C) 2017-2018 The LineageOS Project
 
      Licensed under the Apache License, Version 2.0 (the "License");
      you may not use this file except in compliance with the License.
@@ -32,9 +32,18 @@
         android:summary="@string/network_traffic_autohide_summary"
         android:defaultValue="false" />
 
-    <org.cyanogenmod.cmparts.statusbar.NetworkTrafficThresholdSeekBarPreference
-        android:key="network_traffic_autohide_threshold"
-        android:title="@string/network_traffic_autohide_threshold_title"
+    <DropDownPreference
+        android:key="network_traffic_units"
+        android:title="@string/network_traffic_units_title"
+        android:entries="@array/network_traffic_units_entries"
+        android:entryValues="@array/network_traffic_units_values"
+        android:summary="%s"
         android:persistent="false" />
+
+    <cyanogenmod.preference.CMSecureSettingSwitchPreference
+        android:key="network_traffic_show_units"
+        android:title="@string/network_traffic_show_units"
+        android:summary="@string/network_traffic_show_units_summary"
+        android:defaultValue="true" />
 
 </PreferenceScreen>
